@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- suppress favicon error message -->
+    <link rel="icon" href="data:," />
+    <title>fs1</title>
+    <style>
+      div button {
+        display: block;
+        width: 10rem;
+        margin: 0.5em auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="width: 100%">
+      <button id="btn1">read file</button>
+      <button id="btn2">remove file</button>
+      <button id="btn3">directory test</button>
+      <button id="btn4">list entries</button>
+    </div>
+    <hr />
+    <input type="file" id="myfile" multiple />
+    <hr />
+    <ul id="filelist"></ul>
+  </body>
+  <script type="module" src="./WebFileSystem.js"></script>
+</html>
