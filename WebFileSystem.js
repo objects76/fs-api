@@ -167,7 +167,7 @@ setHandler("#btn1", async (evt) => {
     const fileWriter = await fs.openFile("/read_write.txt", "a+");
 
     for (let i = 0; i < 10; ++i) {
-      const blob = new Blob([new Date().toLocaleString() + "\n"], { type: "text/plain" });
+      const blob = new Blob([new Date().toLocaleString() + "-" + Date.now() + "\n"], { type: "text/plain" });
       await fileWriter.writeAsync(blob);
     }
     console.log("write done");
