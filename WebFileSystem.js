@@ -1,8 +1,8 @@
 window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
 window.URL = window.URL || window.webkitURL;
 
-const onError = (e) => {
-  logger.log("FS error: " + e.code + " - " + e.name, ":", e);
+const onFSError = (e) => {
+  console.error(`FS: ${e.name}(${e.code}),`, e);
 };
 
 export default class WebFileSystem {
@@ -14,13 +14,13 @@ export default class WebFileSystem {
     this.fs.root.createReader().readEntries((results) => {
       for (const entry of results) {
         if (entry.isDirectory) {
-          entry.removeRecursively(() => {}, onError);
+          entry.removeRecursively(() => {}, onFSError);
         } else {
-          entry.remove(() => {}, onError);
+          entry.remove(() => {}, onFSError);
         }
       }
       getAllEntries(this.fs.root);
-    }, onError);
+    }, onFSError);
   };
 
   open = (storageSize = 1024 * 1024, temp = true) => {
@@ -30,17 +30,15 @@ export default class WebFileSystem {
     };
 
     if (temp) {
-      window.requestFileSystem(TEMPORARY, storageSize, onDone, onError);
+      window.requestFileSystem(TEMPORARY, storageSize, onDone, onFSError);
     } else {
       window.webkitStorageInfo.requestQuota(
         PERSISTENT,
         storageSize,
         (grantedBytes) => {
-          window.requestFileSystem(PERSISTENT, grantedBytes, onDone, onError);
+          window.requestFileSystem(PERSISTENT, grantedBytes, onDone, onFSError);
         },
-        (e) => {
-          console.error("Error", e);
-        }
+        onFSError
       );
     }
   };
@@ -119,7 +117,13 @@ export default class WebFileSystem {
                 if (mode.includes("+")) fileWriter.seek(fileWriter.length);
                 fileWriter.onwritestart = () => console.log("WRITE START");
                 fileWriter.onwriteend = () => console.log("WRITE END");
-
+                fileWriter.writeAsync = (blob) => {
+                  return new Promise((ok, ng) => {
+                    fileWriter.write(blob);
+                    fileWriter.onwriteend = ok;
+                    fileWriter.onerror = ng;
+                  });
+                };
                 resolve(fileWriter);
                 // fileWriter.write(blob)
               }, reject);
@@ -159,19 +163,27 @@ fs.open();
 
 setHandler("#btn1", async (evt) => {
   // write
-  {
+  try {
     const fileWriter = await fs.openFile("/read_write.txt", "a+");
-    var blob = new Blob(["Lorem Ipsum"], { type: "text/plain" });
-    fileWriter.write(blob);
+
+    for (let i = 0; i < 10; ++i) {
+      const blob = new Blob([new Date().toLocaleString() + "\n"], { type: "text/plain" });
+      await fileWriter.writeAsync(blob);
+    }
+    console.log("write done");
+  } catch (err) {
+    onFSError(err);
   }
   // read
-  {
+  try {
     const fileBlob = await fs.openFile("/read_write.txt", "r");
     const reader = new FileReader();
     reader.onloadend = (evt) => {
       console.log(evt.target.result);
     };
     reader.readAsText(fileBlob);
+  } catch (err) {
+    onFSError(err);
   }
 });
 
