@@ -181,7 +181,7 @@ function downloadBlob(blob, destName) {
 //------------------------------------------------------------------------------
 // test: utils for test setup.
 //------------------------------------------------------------------------------
-document.body.innerHTML += `<div id='test-buttons' style="width: 100%"></div>`;
+document.body.insertAdjacentHTML("beforeend", `<div id='test-buttons' style="width: 100%"></div>`);
 document.head.insertAdjacentHTML(
   "beforeend",
   `<style>
