@@ -28,9 +28,7 @@
 
 (function (exports) {
   // Bomb out if the Filesystem API is available natively.
-  if (exports.requestFileSystem || exports.webkitRequestFileSystem) {
-    return;
-  }
+  if (exports.requestFileSystem || exports.webkitRequestFileSystem) return;
 
   // Bomb out if no indexedDB available
   const indexedDB = exports.indexedDB || exports.mozIndexedDB || exports.msIndexedDB;

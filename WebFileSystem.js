@@ -1,13 +1,30 @@
 window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
 window.URL = window.URL || window.webkitURL;
 
+window.requestPersistentStorageQuota = (size, ok, ng) => {
+  if (navigator.webkitPersistentStorage) navigator.webkitPersistentStorage.requestQuota(size, ok, ng);
+  else if (window.webkitStorageInfo) window.webkitStorageInfo.requestQuota(PERSISTENT, size, ok, ng);
+  else throw Error("webkitStorageInfo is not defined");
+};
+
 // wrapper of FileSystem WebAPI
 //  - callback type of WebAPI => Promise based.
+
+const getByteSize = (n) => {
+  if (n < 1024) return n + " bytes";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(2) + " KB";
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(2) + " MB";
+  return (n / 1024 / 1024 / 1024).toFixed(2) + " GB";
+};
 
 export default class WebFileSystem {
   constructor() {
     this.fs = undefined;
   }
+
+  freeStorage = async () => {
+    // ????
+  };
 
   clear = async () => {
     try {
@@ -23,6 +40,7 @@ export default class WebFileSystem {
           });
         })
       );
+
       console.log("fs cleared");
     } catch (err) {
       return Promise.reject(err);
@@ -30,15 +48,21 @@ export default class WebFileSystem {
   };
 
   open = async (storageSize = 1024 * 1024, temp = true) => {
+    WebFileSystem.dumpQuota();
     try {
       if (!temp) {
+        // https://stackoverflow.com/questions/17809824/how-to-use-navigator-instead-of-window-webkitstorageinfo-html5-file-system-api
+        const requestedSize = storageSize;
         storageSize = await new Promise((ok, ng) => {
-          window.webkitStorageInfo.requestQuota(PERSISTENT, storageSize, ok, ng);
+          window.requestPersistentStorageQuota(requestedSize, ok, ng);
         });
       }
 
-      this.fs = await new Promise((ok, ng) => window.requestFileSystem(TEMPORARY, storageSize, ok, ng));
-      console.log("Opened file system: " + this.fs.name);
+      this.fs = await new Promise((ok, ng) =>
+        window.requestFileSystem(temp ? TEMPORARY : PERSISTENT, storageSize, ok, ng)
+      );
+      console.log("Opened file system:", this.fs.name, "storageSize=", storageSize);
+      WebFileSystem.dumpQuota();
     } catch (err) {
       return Promise.reject(err);
     }
@@ -156,12 +180,58 @@ export default class WebFileSystem {
   };
 
   saveAs = async (fileblob, destPath) => {
-    const fileWriter = await this.openFile(destPath, "a");
-    const writtenBlob = await fileWriter.writeAsync(fileblob);
-    console.log("write done for", destPath, "blob=", writtenBlob);
+    try {
+      const fileWriter = await this.openFile(destPath, "a");
+      const writtenBlob = await fileWriter.writeAsync(fileblob);
+      console.log("write done for", destPath, "blob=", writtenBlob);
+    } catch (err) {
+      console.error("save ", destPath, err);
+      this.deleteEntry(destPath);
+    }
   };
   save = async (fileblob, destFolder = "") => {
     this.saveAs(fileblob, destFolder + "/" + fileblob.name);
+  };
+
+  // static
+
+  static dumpQuota = async () => {
+    if (navigator.storage && navigator.storage.persist) {
+      const isPersisted = await navigator.storage.persisted();
+      console.log(`Persisted storage granted: ${isPersisted}`);
+    }
+
+    if (navigator.webkitTemporaryStorage) {
+      // navigator.webkitTemporaryStorage.requestQuota(Number.MAX_SAFE_INTEGER, (grantedBytes) => {
+      //   console.log(`TemporaryStorage: usable size=${getByteSize(grantedBytes)}`);
+      // });
+      navigator.webkitTemporaryStorage.queryUsageAndQuota(
+        (usedBytes, grantedBytes) =>
+          console.log(`TemporaryStorage: ${getByteSize(usedBytes)}/${getByteSize(grantedBytes)}`),
+        (e) => console.log("Error", e)
+      );
+    }
+    if (navigator.webkitPersistentStorage) {
+      // navigator.webkitPersistentStorage.requestQuota(Number.MAX_SAFE_INTEGER, (grantedBytes) => {
+      //   console.log(`PersistentStorage: usable size=${getByteSize(grantedBytes)}`);
+      // });
+      navigator.webkitPersistentStorage.queryUsageAndQuota(
+        (usedBytes, grantedBytes) =>
+          console.log(`PersistentStorage: ${getByteSize(usedBytes)}/${getByteSize(grantedBytes)}`),
+        (e) => console.log("Error", e)
+      );
+    }
+
+    navigator?.storage?.estimate().then(function (estimate) {
+      console.log("usage=", estimate.usage, getByteSize(estimate.quota));
+    });
+    // test
+    // navigator.storageQuota.queryInfo("temporary").then((info) => console.info(info));
+    // navigator.storageQuota.queryInfo("persistent").then((info) => console.info(info));
+    navigator?.storage?.persisted().then(function (persistent) {
+      if (persistent) console.log("Storage will not be cleared except by explicit user action");
+      else console.log("Storage may be cleared by the UA under storage pressure.");
+    });
   };
 } // class
 
@@ -209,13 +279,20 @@ const setHandler = (element, callback = undefined, eventName = "click") => {
 // test body:
 //------------------------------------------------------------------------------
 const fs = new WebFileSystem();
-fs.open();
 
-setHandler(`<button id='fs-clear'>fs clear(erase all)</button>`, async (evt) => {
+setHandler(`<button id='fs-open'>fs open</button>`, async (evt) => {
+  fs.open(1024 * 8, false);
+  //fs.clear();
+});
+setHandler(`<button id='fs-clear'>fs clear</button>`, async (evt) => {
   fs.clear();
 });
 
-setHandler(`<button id='read-write' >read/write</button>`, async (evt) => {
+setHandler(`<button id='fs-quota'>fs quota</button>`, async (evt) => {
+  WebFileSystem.dumpQuota();
+});
+
+setHandler(`<hr/><button id='read-write' >read/write</button>`, async (evt) => {
   let text_path = "/folder1/folder2 withspace/read_ write.txt"; // white space in file or folder.
   // write
   try {
@@ -262,6 +339,10 @@ setHandler(`<button id='download' >download</button>`, async (evt) => {
   let path = document.querySelector("#test-path").value;
   if (!path) path = "/childProcess.execSync.png";
   await fs.download(path);
+});
+setHandler(`<button id='delete'>delete</button>`, async (evt) => {
+  let path = document.querySelector("#test-path").value;
+  if (!path) path = "/childProcess.execSync.png";
   await fs.deleteEntry(path);
 });
 
