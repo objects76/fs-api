@@ -55,9 +55,7 @@ export default class WebFileSystem {
           { create },
           (theDir) => {
             if (++i === folders.length) ok(theDir);
-            else {
-              impl(theDir, folders, i);
-            }
+            else impl(theDir, folders, i);
           },
           ng // (error)=>{}
         );
