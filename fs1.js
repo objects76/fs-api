@@ -13,7 +13,7 @@ function createFile() {
   fs.root.getFile(
     "log.txt",
     { create: true, exclusive: false },
-    function (fileEntry) {
+    (fileEntry)=> {
       console.log(fileEntry);
     },
     errorHandler
@@ -24,13 +24,13 @@ function readFile() {
   fs.root.getFile(
     "log.txt",
     {},
-    function (fileEntry) {
+    (fileEntry)=> {
       // Get a File object representing the file,
       // then use FileReader to read its contents.
       fileEntry.file( (file) => {
         var reader = new FileReader();
 
-        reader.onloadend = function (e) {
+        reader.onloadend = (e)=> {
           var txtArea = document.createElement("textarea");
           txtArea.value = this.result;
           document.body.appendChild(txtArea);
@@ -48,15 +48,15 @@ function writeFile(dirEntry) {
   dirEntry.getFile(
     `log-${Date.now()}.txt`,
     { create: true },
-    function (fileEntry) {
+    (fileEntry)=> {
       // Create a FileWriter object for our FileEntry (log.txt).
-      fileEntry.createWriter(function (fileWriter) {
+      fileEntry.createWriter((fileWriter)=> {
         fileWriter.seek(fileWriter.length); // append
-        fileWriter.onwriteend = function (e) {
+        fileWriter.onwriteend = (e)=> {
           console.log("Write completed.");
         };
 
-        fileWriter.onerror = function (e) {
+        fileWriter.onerror = (e)=> {
           console.log("Write failed: " + e.toString());
         };
 
@@ -94,8 +94,8 @@ function copyFilesIntoWebFS(files) {
     fs.root.getFile(
       f.name,
       { create: true, exclusive: true },
-      function (fileEntry) {
-        fileEntry.createWriter(function (fileWriter) {
+      (fileEntry)=> {
+        fileEntry.createWriter((fileWriter)=> {
           fileWriter.write(f); // Note: write() can take a File or Blob object.
         }, errorHandler);
       },
@@ -117,8 +117,8 @@ function removeFile() {
   fs.root.getFile(
     "log.txt",
     { create: false },
-    function (fileEntry) {
-      fileEntry.remove(function () {
+    (fileEntry)=> {
+      fileEntry.remove(()=> {
         console.log("File removed.");
       }, errorHandler);
     },
@@ -142,7 +142,7 @@ function createDirs(absPath) {
     dirEntry.getDirectory(
       folders[0],
       { create: true },
-      function (subdirEntry) {
+      (subdirEntry)=> {
         console.log("   new dir:", dirEntry.name, dirEntry.fullPath);
         if (folders.length) {
           impl(subdirEntry, folders.slice(1));
@@ -166,7 +166,7 @@ function listResults(entries) {
   // to the DOM once. Only one browser reflow occurs.
   var fragment = document.createDocumentFragment();
 
-  entries.forEach(function (entry, i) {
+  entries.forEach((entry, i)=> {
     var li = document.createElement("li");
     li.innerHTML = `<span>${entry.isDirectory ? "+" : " "} ${entry.name}</span>`;
     fragment.appendChild(li);
@@ -180,7 +180,7 @@ function listResults(entries) {
 //
 function getDirectoryEntry(path) {
   const folders = path.split("/");
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject)=> {
     const impl = (curDir, folders, i) => {
       curDir.getDirectory(
         folders[i],
@@ -200,7 +200,7 @@ function getDirectoryEntry(path) {
 }
 
 function getFileEntries(path) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject)=> {
     getDirectoryEntry(path).then((dirEntry) => {
       dirEntry.createReader().readEntries(resolve, reject);
     }, reject);

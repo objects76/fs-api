@@ -6,26 +6,8 @@
     <!-- suppress favicon error message -->
     <link rel="icon" href="data:," />
     <title>fs1</title>
-    <style>
-      div button {
-        display: block;
-        width: 10rem;
-        margin: 0.5em auto;
-      }
-    </style>
-    <script src="./idb.filesystem.min.js" async></script>
+    <script async src="./idb.filesystem.js"></script>
   </head>
-  <body>
-    <div style="width: 100%">
-      <button id="btn1">read file</button>
-      <button id="btn2">remove file</button>
-      <button id="btn3">directory test</button>
-      <button id="btn4">list entries</button>
-    </div>
-    <hr />
-    <input type="file" id="myfile" multiple />
-    <hr />
-    <ul id="filelist"></ul>
-  </body>
+  <body></body>
   <script type="module" src="./WebFileSystem.js"></script>
 </html>
