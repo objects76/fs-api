@@ -19,3 +19,10 @@
             callbackfn(ok, ng?);
     })
 ```
+
+# vsc hold last commit message
+
+```bash
+echo "My fancy commit message" > .mycommitmsg.txt
+git config --local commit.template .mycommitmsg.txt
+```
