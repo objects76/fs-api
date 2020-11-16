@@ -1,10 +1,6 @@
 window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
 window.URL = window.URL || window.webkitURL;
 
-const onFSError = (e) => {
-  console.error(`FS: ${e.name}(${e.code}),`, e);
-};
-
 // wrapper of FileSystem WebAPI
 //  - callback type of WebAPI => Promise based.
 
@@ -29,20 +25,8 @@ export default class WebFileSystem {
       );
       console.log("fs cleared");
     } catch (err) {
-      onFSError(err);
+      return Promise.reject(err);
     }
-
-    // //
-    // this.fs.root.createReader().readEntries((results) => {
-    //   for (const entry of results) {
-    //     if (entry.isDirectory) {
-    //       entry.removeRecursively(() => {}, onFSError);
-    //     } else {
-    //       entry.remove(() => {}, onFSError);
-    //     }
-    //   }
-    //   console.log("fs cleared");
-    // }, onFSError);
   };
 
   open = async (storageSize = 1024 * 1024, temp = true) => {
@@ -56,7 +40,7 @@ export default class WebFileSystem {
       this.fs = await new Promise((ok, ng) => window.requestFileSystem(TEMPORARY, storageSize, ok, ng));
       console.log("Opened file system: " + this.fs.name);
     } catch (err) {
-      onFSError(err);
+      return Promise.reject(err);
     }
   };
 
@@ -150,7 +134,7 @@ export default class WebFileSystem {
           fileWriter.writeAsync = (blob) => {
             return new Promise((ok, ng) => {
               fileWriter.write(blob);
-              fileWriter.onwriteend = ok;
+              fileWriter.onwriteend = () => ok(blob);
               fileWriter.onerror = ng;
             });
           };
@@ -175,8 +159,8 @@ export default class WebFileSystem {
 
   saveAs = async (fileblob, destPath) => {
     const fileWriter = await this.openFile(destPath, "a");
-    await fileWriter.writeAsync(fileblob);
-    console.log("write done for", destPath);
+    const writtenBlob = await fileWriter.writeAsync(fileblob);
+    console.log("write done for", destPath, "blob=", writtenBlob);
   };
   save = async (fileblob, destFolder = "") => {
     this.saveAs(fileblob, destFolder + "/" + fileblob.name);
@@ -195,36 +179,41 @@ function downloadBlob(blob, destName) {
 }
 
 //------------------------------------------------------------------------------
-// test
+// test: utils for test setup.
 //------------------------------------------------------------------------------
 document.body.innerHTML += `<div id='test-buttons' style="width: 100%"></div>`;
-document.head.innerHTML += `<style>
+document.head.insertAdjacentHTML(
+  "beforeend",
+  `<style>
   #test-buttons 
   button, input {
       display: block;
       width: 15rem;
       margin: 0.5em auto;
+      box-sizing: border-box;
     }
-</style>
-`;
+</style>`
+);
+
 const setHandler = (element, callback = undefined, eventName = "click") => {
-  document.querySelector("#test-buttons").innerHTML += element;
+  document.querySelector("#test-buttons").insertAdjacentHTML("beforeend", element);
 
   const match = /id=['"]([^'"]+)/g.exec(element);
   if (match && callback) {
-    setTimeout(() => {
-      const el = document.querySelector("#" + match[1]);
-      if (el) el.addEventListener(eventName, callback);
-      else console.error(`no element for <${selector}>`);
-    }, 0);
+    const el = document.querySelector("#" + match[1]);
+    if (el) el.addEventListener(eventName, callback);
+    else console.error(`no element for <${selector}>`);
   }
 };
 //window.addEventListener("load", (evt) => console.log("load"));
 
+//------------------------------------------------------------------------------
+// test body:
+//------------------------------------------------------------------------------
 const fs = new WebFileSystem();
 fs.open();
 
-setHandler(`<button id='fs-clear' >fs clear</button>`, async (evt) => {
+setHandler(`<button id='fs-clear'>fs clear(erase all)</button>`, async (evt) => {
   fs.clear();
 });
 
@@ -241,37 +230,39 @@ setHandler(`<button id='read-write' >read/write</button>`, async (evt) => {
     }
     console.log("write done");
   } catch (err) {
-    onFSError(err);
+    console.error(err);
   }
+
   // read
   try {
     const folder = undefined; //await fs.getDirectory(text_path.substring(0, text_path.lastIndexOf("/")));
     const fileBlob = await fs.openFile(text_path, "r", folder);
     const reader = new FileReader();
-    reader.onloadend = (evt) => {
-      console.log(evt.target.result);
-    };
+    reader.onloadend = (evt) => console.log(evt.target.result);
     reader.readAsText(fileBlob);
   } catch (err) {
-    onFSError(err);
+    console.error(err);
   }
 
   // download
   try {
     fs.download(text_path);
-    fs.deleteEntry(text_path);
+    //fs.deleteEntry(text_path);
   } catch (err) {
-    onFSError(err);
+    console.error(err);
   }
 });
 
+setHandler(`<hr/><input id='test-path' />`);
 setHandler(`<button id='get-entries' >get entries</button>`, async () => {
-  const entries = await fs.getFileEntriesRecursively("/");
+  let path = document.querySelector("#test-path").value;
+  const entries = await fs.getFileEntriesRecursively(path ? path : "/");
   console.log(entries);
 });
 
 setHandler(`<button id='download' >download</button>`, async (evt) => {
-  const path = "/childProcess.execSync.png";
+  let path = document.querySelector("#test-path").value;
+  if (!path) path = "/childProcess.execSync.png";
   await fs.download(path);
   await fs.deleteEntry(path);
 });
@@ -280,9 +271,10 @@ setHandler(`<button id='download' >download</button>`, async (evt) => {
 setHandler("<hr/>");
 setHandler(
   `<input type="file" id="myfile" multiple />`,
-  (e) => {
+  async (e) => {
+    await fs.createDirectory("/upload");
     for (const f of e.target.files) {
-      fs.save(f);
+      fs.save(f, "/upload");
     }
   },
   "change"
