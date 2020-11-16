@@ -22,6 +22,10 @@
 
 # vsc hold last commit message
 
+## 1. just use Alt +Up/Down arrow key
+
+## 2. or use git hooks
+
 ```bash
 $>
     echo "My fancy commit message" > .git/last-commit-msg.txt
