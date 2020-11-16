@@ -23,14 +23,17 @@
 # vsc hold last commit message
 
 ```bash
-$> echo "My fancy commit message" > .git/last-commit-msg.txt
-$> git config --local commit.template .git/last-commit-msg.txt
+$>
+    echo "My fancy commit message" > .git/last-commit-msg.txt
+    git config --local commit.template .git/last-commit-msg.txt
 
 
 #!/bin/sh
+#
 # .git/hooks/post-commit
 printf "`git log -1 --pretty=%s`" > .git/last-commit-msg.txt
 
 
-$> chmod +x .git/hooks/post-commit
+$>
+    chmod +x .git/hooks/post-commit
 ```
